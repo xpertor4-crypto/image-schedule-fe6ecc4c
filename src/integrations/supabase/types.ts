@@ -170,6 +170,39 @@ export type Database = {
         }
         Relationships: []
       }
+      live_stream: {
+        Row: {
+          created_at: string
+          ended_at: string | null
+          id: string
+          status: string
+          stream_id: string
+          stream_token: string
+          title: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          status?: string
+          stream_id: string
+          stream_token: string
+          title: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          status?: string
+          stream_id?: string
+          stream_token?: string
+          title?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string

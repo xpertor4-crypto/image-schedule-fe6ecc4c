@@ -14,9 +14,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { User } from "@supabase/supabase-js";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Menu, Calendar as CalendarIcon, Plus } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { GoLiveDialog } from "@/components/GoLiveDialog";
+import { LiveStreamItem } from "@/components/LiveStreamItem";
 
 interface CalendarEvent {
   id: string;
@@ -33,6 +35,15 @@ interface CalendarEvent {
   completedAt?: string;
 }
 
+interface LiveStream {
+  id: string;
+  title: string;
+  user_id: string;
+  stream_id: string;
+  status: string;
+  created_at: string;
+}
+
 const Index = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeCategory, setActiveCategory] = useState("All");
@@ -44,6 +55,8 @@ const Index = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [useCalendarView, setUseCalendarView] = useState(false);
   const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "list">("week");
+  const [isGoLiveDialogOpen, setIsGoLiveDialogOpen] = useState(false);
+  const [liveStreams, setLiveStreams] = useState<LiveStream[]>([]);
   const navigate = useNavigate();
   const { canInstall, handleInstall } = useInstallPWA();
 
@@ -73,6 +86,33 @@ const Index = () => {
 
     return () => subscription.unsubscribe();
   }, [navigate]);
+
+  useEffect(() => {
+    if (user) {
+      fetchLiveStreams();
+
+      // Subscribe to realtime updates for live streams
+      const channel = supabase
+        .channel('live-streams-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'live_stream'
+          },
+          (payload) => {
+            console.log('Live stream change:', payload);
+            fetchLiveStreams();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [user]);
 
   const fetchEvents = async () => {
     try {
@@ -113,6 +153,22 @@ const Index = () => {
       toast("Error loading events", {
         description: error.message || "Failed to load events",
       });
+    }
+  };
+
+  const fetchLiveStreams = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("live_stream")
+        .select("*")
+        .eq("status", "active")
+        .order("created_at", { ascending: false });
+
+      if (error) throw error;
+
+      setLiveStreams(data || []);
+    } catch (error: any) {
+      console.error("Error loading live streams:", error);
     }
   };
 
@@ -210,8 +266,11 @@ const Index = () => {
           Today
         </Badge>
         
-        <Button variant="ghost" size="icon">
-          <CalendarIcon className="h-5 w-5" />
+        <Button 
+          onClick={() => setIsGoLiveDialogOpen(true)}
+          className="rounded-full px-4 py-2 text-sm font-medium"
+        >
+          Go Live
         </Button>
       </div>
 
@@ -231,19 +290,45 @@ const Index = () => {
       {/* Task List */}
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-1 pb-20">
-          {filteredEvents.length === 0 ? (
-            <div className="text-center py-12 text-muted-foreground">
-              <p>No tasks for this day</p>
+          {/* Live Streams */}
+          {liveStreams.length > 0 && (
+            <div className="mb-4">
+              <h3 className="text-sm font-semibold text-muted-foreground px-2 mb-2">
+                Live Now
+              </h3>
+              {liveStreams.map((stream) => (
+                <LiveStreamItem
+                  key={stream.id}
+                  stream={stream}
+                  onClick={() => {
+                    toast("Live stream viewer coming soon!");
+                  }}
+                />
+              ))}
             </div>
-          ) : (
-            filteredEvents.map((event) => (
-              <TaskListItem
-                key={event.id}
-                event={event}
-                onClick={() => handleEventClick(event)}
-              />
-            ))
           )}
+
+          {/* Tasks */}
+          {filteredEvents.length === 0 && liveStreams.length === 0 ? (
+            <div className="text-center py-12 text-muted-foreground">
+              <p>No tasks or live streams for today</p>
+            </div>
+          ) : filteredEvents.length > 0 ? (
+            <>
+              {liveStreams.length > 0 && (
+                <h3 className="text-sm font-semibold text-muted-foreground px-2 mb-2 mt-4">
+                  Today's Tasks
+                </h3>
+              )}
+              {filteredEvents.map((event) => (
+                <TaskListItem
+                  key={event.id}
+                  event={event}
+                  onClick={() => handleEventClick(event)}
+                />
+              ))}
+            </>
+          ) : null}
         </div>
       </ScrollArea>
 
@@ -271,6 +356,12 @@ const Index = () => {
         open={isEventDialogOpen}
         onOpenChange={setIsEventDialogOpen}
         onStatusUpdate={fetchEvents}
+      />
+
+      <GoLiveDialog
+        open={isGoLiveDialogOpen}
+        onOpenChange={setIsGoLiveDialogOpen}
+        onStreamCreated={fetchLiveStreams}
       />
     </div>
   );

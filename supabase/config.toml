@@ -1,1 +1,10 @@
 project_id = "elnfuzlcqldjaixwdddz"
+
+[functions.chat]
+verify_jwt = true
+
+[functions.setup-coaches]
+verify_jwt = true
+
+[functions.stream-management]
+verify_jwt = true
