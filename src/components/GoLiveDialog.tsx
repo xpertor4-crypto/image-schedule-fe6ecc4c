@@ -17,7 +17,7 @@ interface GoLiveDialogProps {
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
   children?: React.ReactNode;
-  onStreamCreated?: () => void;
+  onStreamCreated?: (streamData: any) => void;
 }
 
 export const GoLiveDialog = ({ open, onOpenChange, children, onStreamCreated }: GoLiveDialogProps) => {
@@ -42,10 +42,14 @@ export const GoLiveDialog = ({ open, onOpenChange, children, onStreamCreated }: 
 
       if (error) throw error;
 
-      toast.success("Live stream started successfully!");
+      toast.success("Live stream created! Starting camera...");
       setTitle("");
       onOpenChange?.(false);
-      onStreamCreated?.();
+      
+      // Pass stream credentials to parent
+      if (onStreamCreated) {
+        onStreamCreated(data);
+      }
     } catch (error: any) {
       console.error("Error starting live stream:", error);
       toast.error(error.message || "Failed to start live stream");

@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { GoLiveDialog } from "@/components/GoLiveDialog";
 import { LiveStreamItem } from "@/components/LiveStreamItem";
+import { BroadcasterInterface } from "@/components/BroadcasterInterface";
 
 interface CalendarEvent {
   id: string;
@@ -57,6 +58,8 @@ const Index = () => {
   const [viewMode, setViewMode] = useState<"day" | "week" | "month" | "list">("week");
   const [isGoLiveDialogOpen, setIsGoLiveDialogOpen] = useState(false);
   const [liveStreams, setLiveStreams] = useState<LiveStream[]>([]);
+  const [isBroadcasting, setIsBroadcasting] = useState(false);
+  const [broadcastData, setBroadcastData] = useState<any>(null);
   const navigate = useNavigate();
   const { canInstall, handleInstall } = useInstallPWA();
 
@@ -361,8 +364,25 @@ const Index = () => {
       <GoLiveDialog
         open={isGoLiveDialogOpen}
         onOpenChange={setIsGoLiveDialogOpen}
-        onStreamCreated={fetchLiveStreams}
+        onStreamCreated={(data) => {
+          setBroadcastData(data);
+          setIsBroadcasting(true);
+          fetchLiveStreams();
+        }}
       />
+
+      {isBroadcasting && broadcastData && (
+        <BroadcasterInterface
+          streamId={broadcastData.streamId}
+          token={broadcastData.token}
+          apiKey={broadcastData.apiKey}
+          onEndStream={() => {
+            setIsBroadcasting(false);
+            setBroadcastData(null);
+            fetchLiveStreams();
+          }}
+        />
+      )}
     </div>
   );
 };
