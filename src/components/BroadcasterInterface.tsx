@@ -133,6 +133,9 @@ export const BroadcasterInterface = ({
         // Enable camera and microphone
         await livestreamCall.camera.enable();
         await livestreamCall.microphone.enable();
+        
+        // Start broadcasting - makes the stream available for viewers
+        await livestreamCall.goLive();
 
         setClient(videoClient);
         setCall(livestreamCall);

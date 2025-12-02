@@ -74,6 +74,8 @@ export const ViewerInterface = ({
         });
 
         const liveCall = streamClient.call('livestream', streamId);
+        
+        // Join as a viewer (not backstage participant)
         await liveCall.join();
 
         setClient(streamClient);
@@ -81,7 +83,7 @@ export const ViewerInterface = ({
         setIsLoading(false);
       } catch (err: any) {
         console.error('Error initializing viewer:', err);
-        setError(err.message || 'Failed to join stream');
+        setError(err.message || 'Failed to join stream. The stream may not be live yet.');
         setIsLoading(false);
       }
     };
