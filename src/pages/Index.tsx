@@ -20,6 +20,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { GoLiveDialog } from "@/components/GoLiveDialog";
 import { LiveStreamItem } from "@/components/LiveStreamItem";
 import { BroadcasterInterface } from "@/components/BroadcasterInterface";
+import { ViewerInterface } from "@/components/ViewerInterface";
 
 interface CalendarEvent {
   id: string;
@@ -60,6 +61,8 @@ const Index = () => {
   const [liveStreams, setLiveStreams] = useState<LiveStream[]>([]);
   const [isBroadcasting, setIsBroadcasting] = useState(false);
   const [broadcastData, setBroadcastData] = useState<any>(null);
+  const [isViewing, setIsViewing] = useState(false);
+  const [viewerData, setViewerData] = useState<any>(null);
   const navigate = useNavigate();
   const { canInstall, handleInstall } = useInstallPWA();
 
@@ -173,6 +176,36 @@ const Index = () => {
     } catch (error: any) {
       console.error("Error loading live streams:", error);
     }
+  };
+
+  const joinStreamAsViewer = async (stream: LiveStream) => {
+    try {
+      const { data, error } = await supabase.functions.invoke('stream-management', {
+        body: {
+          action: 'getViewerToken',
+          streamId: stream.stream_id,
+        },
+      });
+
+      if (error) throw error;
+
+      setViewerData({
+        streamId: stream.stream_id,
+        token: data.token,
+        apiKey: data.apiKey,
+        userId: data.userId,
+        title: stream.title,
+      });
+      setIsViewing(true);
+    } catch (error: any) {
+      console.error('Error joining stream:', error);
+      toast.error('Failed to join stream');
+    }
+  };
+
+  const leaveStream = () => {
+    setIsViewing(false);
+    setViewerData(null);
   };
 
   const filteredEvents = events.filter((event) => {
@@ -303,9 +336,7 @@ const Index = () => {
                 <LiveStreamItem
                   key={stream.id}
                   stream={stream}
-                  onClick={() => {
-                    toast("Live stream viewer coming soon!");
-                  }}
+                  onClick={() => joinStreamAsViewer(stream)}
                 />
               ))}
             </div>
@@ -381,6 +412,16 @@ const Index = () => {
             setBroadcastData(null);
             fetchLiveStreams();
           }}
+        />
+      )}
+
+      {isViewing && viewerData && (
+        <ViewerInterface
+          streamId={viewerData.streamId}
+          token={viewerData.token}
+          apiKey={viewerData.apiKey}
+          userId={viewerData.userId}
+          onLeave={leaveStream}
         />
       )}
     </div>

@@ -39,6 +39,26 @@ serve(async (req) => {
     const { action, title, streamId } = await req.json();
     console.log('Stream management action:', action, { title, streamId, userId: user.id });
 
+    if (action === 'getViewerToken') {
+      // Generate viewer token for joining stream
+      const payload = {
+        user_id: user.id,
+        iat: Math.floor(Date.now() / 1000),
+        exp: Math.floor(Date.now() / 1000) + (60 * 60 * 24), // 24 hours
+      };
+
+      const viewerToken = await generateStreamToken(payload, GETSTREAM_API_SECRET);
+
+      return new Response(
+        JSON.stringify({
+          token: viewerToken,
+          apiKey: GETSTREAM_API_KEY,
+          userId: user.id,
+        }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (action === 'create') {
       // Generate unique stream ID
       const uniqueStreamId = `stream_${user.id}_${Date.now()}`;
