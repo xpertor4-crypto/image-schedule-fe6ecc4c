@@ -110,10 +110,18 @@ serve(async (req) => {
         .select('*')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .single();
+        .maybeSingle();
 
-      if (fetchError || !activeStream) {
-        throw new Error('No active stream found');
+      if (fetchError) {
+        console.error('Error fetching active stream:', fetchError);
+        throw fetchError;
+      }
+
+      if (!activeStream) {
+        return new Response(
+          JSON.stringify({ error: 'No active stream found', noActiveStream: true }),
+          { status: 404, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
       }
 
       // Generate new token for the existing stream

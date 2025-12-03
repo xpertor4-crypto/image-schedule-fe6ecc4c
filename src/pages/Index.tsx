@@ -225,6 +225,14 @@ const Index = () => {
 
         if (error) throw error;
 
+        // Handle case where stream no longer exists
+        if (data?.noActiveStream) {
+          setMyActiveStream(null);
+          setIsGoLiveDialogOpen(true);
+          toast.info('Your previous stream has ended. Start a new one!');
+          return;
+        }
+
         setBroadcastData({
           streamId: data.streamId,
           token: data.token,
@@ -234,7 +242,9 @@ const Index = () => {
         toast.success('Rejoined your live stream');
       } catch (error: any) {
         console.error('Error rejoining stream:', error);
-        toast.error('Failed to rejoin stream');
+        // If rejoin fails, clear state and let user create new stream
+        setMyActiveStream(null);
+        toast.error('Failed to rejoin stream. You can start a new one.');
       }
     } else {
       // Open dialog to create new stream
