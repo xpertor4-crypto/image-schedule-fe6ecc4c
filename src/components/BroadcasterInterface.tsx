@@ -35,41 +35,41 @@ const BroadcasterControls = ({ onEndStream }: { onEndStream: () => void }) => {
   };
 
   return (
-    <div className="fixed bottom-8 left-1/2 -translate-x-1/2 flex items-center gap-4 bg-card/95 backdrop-blur-sm border border-border rounded-full px-6 py-4 shadow-lg">
+    <div className="absolute bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-3 bg-card/90 backdrop-blur-sm border border-border rounded-full px-4 py-3 shadow-lg z-10">
       <Button
         variant="outline"
         size="icon"
-        className="rounded-full h-12 w-12"
+        className="rounded-full h-10 w-10"
         onClick={() => camera.toggle()}
       >
         {isCameraMuted ? (
-          <VideoOff className="h-5 w-5" />
+          <VideoOff className="h-4 w-4" />
         ) : (
-          <Video className="h-5 w-5" />
+          <Video className="h-4 w-4" />
         )}
       </Button>
 
       <Button
         variant="outline"
         size="icon"
-        className="rounded-full h-12 w-12"
+        className="rounded-full h-10 w-10"
         onClick={() => microphone.toggle()}
       >
         {isMicMuted ? (
-          <MicOff className="h-5 w-5" />
+          <MicOff className="h-4 w-4" />
         ) : (
-          <Mic className="h-5 w-5" />
+          <Mic className="h-4 w-4" />
         )}
       </Button>
 
       <Button
         variant="destructive"
         size="icon"
-        className="rounded-full h-12 w-12"
+        className="rounded-full h-10 w-10"
         onClick={handleEndStream}
         disabled={isEnding}
       >
-        <X className="h-5 w-5" />
+        <X className="h-4 w-4" />
       </Button>
     </div>
   );
