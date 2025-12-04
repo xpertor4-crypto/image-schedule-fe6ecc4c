@@ -129,26 +129,7 @@ export const StreamChat = ({ streamId }: StreamChatProps) => {
         <h3 className="text-sm font-semibold">Live Chat</h3>
       </div>
 
-      <ScrollArea className="flex-1 p-2" ref={scrollRef}>
-        <div className="space-y-2">
-          {messages.length === 0 ? (
-            <p className="text-xs text-muted-foreground text-center py-4">
-              No messages yet. Be the first to chat!
-            </p>
-          ) : (
-            messages.map((msg) => (
-              <div key={msg.id} className="text-sm">
-                <span className="font-semibold text-primary">
-                  {msg.display_name}:
-                </span>{' '}
-                <span className="text-foreground">{msg.content}</span>
-              </div>
-            ))
-          )}
-        </div>
-      </ScrollArea>
-
-      <form onSubmit={handleSendMessage} className="p-2 border-t border-border">
+      <form onSubmit={handleSendMessage} className="p-2 border-b border-border">
         <div className="flex gap-2">
           <Input
             value={newMessage}
@@ -167,6 +148,25 @@ export const StreamChat = ({ streamId }: StreamChatProps) => {
           </Button>
         </div>
       </form>
+
+      <ScrollArea className="flex-1 p-2" ref={scrollRef}>
+        <div className="space-y-2">
+          {messages.length === 0 ? (
+            <p className="text-xs text-muted-foreground text-center py-4">
+              No messages yet. Be the first to chat!
+            </p>
+          ) : (
+            messages.map((msg) => (
+              <div key={msg.id} className="text-sm">
+                <span className="font-semibold text-primary">
+                  {msg.display_name}:
+                </span>{' '}
+                <span className="text-foreground">{msg.content}</span>
+              </div>
+            ))
+          )}
+        </div>
+      </ScrollArea>
     </div>
   );
 };
