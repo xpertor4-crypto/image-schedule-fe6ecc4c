@@ -422,16 +422,18 @@ const Index = () => {
         </div>
       </ScrollArea>
 
-      {/* Floating Add Button */}
-      <div className="fixed bottom-24 right-6 z-50">
-        <Button
-          size="lg"
-          className="h-14 w-14 rounded-full bg-app-accent hover:bg-app-accent/90 text-app-accent-foreground shadow-lg"
-          onClick={() => setIsAddDialogOpen(true)}
-        >
-          <Plus className="h-6 w-6" />
-        </Button>
-      </div>
+      {/* Floating Add Button - hidden when viewing stream */}
+      {!isViewing && (
+        <div className="fixed bottom-24 right-6 z-50">
+          <Button
+            size="lg"
+            className="h-14 w-14 rounded-full bg-app-accent hover:bg-app-accent/90 text-app-accent-foreground shadow-lg"
+            onClick={() => setIsAddDialogOpen(true)}
+          >
+            <Plus className="h-6 w-6" />
+          </Button>
+        </div>
+      )}
 
       <AddEventDialog
         open={isAddDialogOpen}
