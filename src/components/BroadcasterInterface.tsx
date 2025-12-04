@@ -82,7 +82,8 @@ const StreamView = ({ onEndStream, dbStreamId }: { onEndStream: () => void; dbSt
   const localParticipant = useLocalParticipant();
 
   return (
-    <div className="relative w-full h-screen bg-background">
+    <div className="fixed inset-0 z-50 bg-background">
+      {/* Video area */}
       <div className="absolute inset-0 md:right-80">
         {localParticipant && (
           <ParticipantView
@@ -97,13 +98,13 @@ const StreamView = ({ onEndStream, dbStreamId }: { onEndStream: () => void; dbSt
         <BroadcasterControls onEndStream={onEndStream} />
       </div>
       
-      {/* Chat sidebar */}
-      <div className="hidden md:block absolute top-0 right-0 w-80 h-full p-2">
+      {/* Chat sidebar - desktop */}
+      <div className="hidden md:flex absolute top-0 right-0 w-80 h-full p-2">
         <StreamChat streamId={dbStreamId} />
       </div>
       
       {/* Mobile chat overlay */}
-      <div className="md:hidden absolute bottom-20 left-2 right-2 h-48">
+      <div className="md:hidden absolute bottom-20 left-2 right-2 h-48 z-20">
         <StreamChat streamId={dbStreamId} />
       </div>
     </div>
