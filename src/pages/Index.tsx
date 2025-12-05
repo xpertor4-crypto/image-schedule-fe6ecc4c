@@ -21,6 +21,7 @@ import { GoLiveDialog } from "@/components/GoLiveDialog";
 import { LiveStreamItem } from "@/components/LiveStreamItem";
 import { BroadcasterInterface } from "@/components/BroadcasterInterface";
 import { ViewerInterface } from "@/components/ViewerInterface";
+import { SimulatedLiveViewer } from "@/components/SimulatedLiveViewer";
 
 interface CalendarEvent {
   id: string;
@@ -46,6 +47,16 @@ interface LiveStream {
   created_at: string;
 }
 
+interface CoachLiveVideo {
+  id: string;
+  title: string;
+  description: string | null;
+  video_url: string;
+  is_live: boolean;
+  coach_id: string;
+  created_at: string;
+}
+
 const Index = () => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [activeCategory, setActiveCategory] = useState("All");
@@ -64,6 +75,8 @@ const Index = () => {
   const [isViewing, setIsViewing] = useState(false);
   const [viewerData, setViewerData] = useState<any>(null);
   const [myActiveStream, setMyActiveStream] = useState<LiveStream | null>(null);
+  const [coachLiveVideos, setCoachLiveVideos] = useState<CoachLiveVideo[]>([]);
+  const [viewingCoachVideo, setViewingCoachVideo] = useState<CoachLiveVideo | null>(null);
   const navigate = useNavigate();
   const { canInstall, handleInstall } = useInstallPWA();
 
@@ -97,6 +110,7 @@ const Index = () => {
   useEffect(() => {
     if (user) {
       fetchLiveStreams();
+      fetchCoachLiveVideos();
 
       // Subscribe to realtime updates for live streams
       const channel = supabase
@@ -115,8 +129,25 @@ const Index = () => {
         )
         .subscribe();
 
+      // Subscribe to coach video changes
+      const coachChannel = supabase
+        .channel('coach-videos-live-changes')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'coach_videos'
+          },
+          () => {
+            fetchCoachLiveVideos();
+          }
+        )
+        .subscribe();
+
       return () => {
         supabase.removeChannel(channel);
+        supabase.removeChannel(coachChannel);
       };
     }
   }, [user]);
@@ -182,6 +213,22 @@ const Index = () => {
       }
     } catch (error: any) {
       console.error("Error loading live streams:", error);
+    }
+  };
+
+  const fetchCoachLiveVideos = async () => {
+    try {
+      const { data, error } = await supabase
+        .from("coach_videos")
+        .select("*")
+        .eq("is_live", true)
+        .order("live_started_at", { ascending: false });
+
+      if (error) throw error;
+
+      setCoachLiveVideos(data || []);
+    } catch (error: any) {
+      console.error("Error loading coach live videos:", error);
     }
   };
 
@@ -383,7 +430,7 @@ const Index = () => {
       <ScrollArea className="flex-1 px-2">
         <div className="space-y-1 pb-20">
           {/* Live Streams */}
-          {liveStreams.length > 0 && (
+          {(liveStreams.length > 0 || coachLiveVideos.length > 0) && (
             <div className="mb-4">
               <h3 className="text-sm font-semibold text-muted-foreground px-2 mb-2">
                 Live Now
@@ -395,17 +442,32 @@ const Index = () => {
                   onClick={() => joinStreamAsViewer(stream)}
                 />
               ))}
+              {coachLiveVideos.map((video) => (
+                <LiveStreamItem
+                  key={`coach-${video.id}`}
+                  stream={{
+                    id: video.id,
+                    title: video.title,
+                    user_id: video.coach_id,
+                    stream_id: video.id,
+                    status: 'active',
+                    created_at: video.created_at,
+                  }}
+                  onClick={() => setViewingCoachVideo(video)}
+                  isCoachVideo
+                />
+              ))}
             </div>
           )}
 
           {/* Tasks */}
-          {filteredEvents.length === 0 && liveStreams.length === 0 ? (
+          {filteredEvents.length === 0 && liveStreams.length === 0 && coachLiveVideos.length === 0 ? (
             <div className="text-center py-12 text-muted-foreground">
               <p>No tasks or live streams for today</p>
             </div>
           ) : filteredEvents.length > 0 ? (
             <>
-              {liveStreams.length > 0 && (
+              {(liveStreams.length > 0 || coachLiveVideos.length > 0) && (
                 <h3 className="text-sm font-semibold text-muted-foreground px-2 mb-2 mt-4">
                   Today's Tasks
                 </h3>
@@ -488,6 +550,14 @@ const Index = () => {
           userId={viewerData.userId}
           dbStreamId={viewerData.dbStreamId}
           onLeave={leaveStream}
+        />
+      )}
+
+      {viewingCoachVideo && (
+        <SimulatedLiveViewer
+          video={viewingCoachVideo}
+          onEnd={() => setViewingCoachVideo(null)}
+          isHost={false}
         />
       )}
     </div>

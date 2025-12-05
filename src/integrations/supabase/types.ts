@@ -14,6 +14,48 @@ export type Database = {
   }
   public: {
     Tables: {
+      coach_videos: {
+        Row: {
+          coach_id: string
+          created_at: string
+          description: string | null
+          duration: number | null
+          id: string
+          is_live: boolean | null
+          live_started_at: string | null
+          thumbnail_url: string | null
+          title: string
+          updated_at: string
+          video_url: string
+        }
+        Insert: {
+          coach_id: string
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          id?: string
+          is_live?: boolean | null
+          live_started_at?: string | null
+          thumbnail_url?: string | null
+          title: string
+          updated_at?: string
+          video_url: string
+        }
+        Update: {
+          coach_id?: string
+          created_at?: string
+          description?: string | null
+          duration?: number | null
+          id?: string
+          is_live?: boolean | null
+          live_started_at?: string | null
+          thumbnail_url?: string | null
+          title?: string
+          updated_at?: string
+          video_url?: string
+        }
+        Relationships: []
+      }
       conversation_participants: {
         Row: {
           conversation_id: string

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { LogOut, User as UserIcon, Globe, ArrowLeft, Palette, Copy, Check, Edit2, Save, LayoutGrid } from "lucide-react";
+import { LogOut, User as UserIcon, Globe, ArrowLeft, Palette, Copy, Check, Edit2, Save, LayoutGrid, Video } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -23,6 +23,7 @@ const Settings = () => {
   const [avatarUrl, setAvatarUrl] = useState("");
   const [saving, setSaving] = useState(false);
   const [useCalendarView, setUseCalendarView] = useState(false);
+  const [isCoach, setIsCoach] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -47,11 +48,24 @@ const Settings = () => {
   useEffect(() => {
     if (user) {
       loadProfile();
+      checkCoachRole();
     }
     // Load view preference
     const savedView = localStorage.getItem('useCalendarView');
     setUseCalendarView(savedView === 'true');
   }, [user]);
+
+  const checkCoachRole = async () => {
+    if (!user) return;
+    
+    const { data: roles } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'coach');
+
+    setIsCoach(roles && roles.length > 0);
+  };
 
   const loadProfile = async () => {
     if (!user) return;
@@ -287,6 +301,26 @@ const Settings = () => {
             />
           </div>
         </div>
+
+        {/* Coach Dashboard Section - Only visible for coaches */}
+        {isCoach && (
+          <div className="bg-card rounded-3xl p-6 shadow-sm mb-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Video className="w-5 h-5 text-muted-foreground" />
+              <h3 className="text-lg font-semibold text-card-foreground">Coach Tools</h3>
+            </div>
+            <Button
+              onClick={() => navigate('/coach-dashboard')}
+              className="w-full"
+            >
+              <Video className="w-4 h-4 mr-2" />
+              Open Coach Dashboard
+            </Button>
+            <p className="text-sm text-muted-foreground mt-2">
+              Upload videos and manage your live streams
+            </p>
+          </div>
+        )}
 
         {/* Sign Out Section */}
         <div className="bg-card rounded-3xl p-6 shadow-sm">
