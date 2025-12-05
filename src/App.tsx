@@ -12,13 +12,14 @@ import Journey from "./pages/Journey";
 import Chat from "./pages/Chat";
 import Settings from "./pages/Settings";
 import SetupCoaches from "./pages/SetupCoaches";
+import CoachDashboard from "./pages/CoachDashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
 
 const AppContent = () => {
   const location = useLocation();
-  const hideNavBar = location.pathname === "/auth";
+  const hideNavBar = location.pathname === "/auth" || location.pathname === "/coach-dashboard";
 
   return (
     <>
@@ -29,6 +30,7 @@ const AppContent = () => {
         <Route path="/chat" element={<Chat />} />
         <Route path="/settings" element={<Settings />} />
         <Route path="/setup-coaches" element={<SetupCoaches />} />
+        <Route path="/coach-dashboard" element={<CoachDashboard />} />
         {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
         <Route path="*" element={<NotFound />} />
       </Routes>
