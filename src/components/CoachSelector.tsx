@@ -122,11 +122,9 @@ const CoachSelector = ({ onSelectCoach, selectedCoachId }: CoachSelectorProps) =
           .select('*')
           .in('id', userIds);
 
-        // Get emails, last message timestamp, and unread count
-        const peopleWithEmails = await Promise.all(
+        // Get last message timestamp and unread count for each user
+        const peopleWithDetails = await Promise.all(
           (userProfiles || []).map(async (profile) => {
-            const { data: { user } } = await supabase.auth.admin.getUserById(profile.id);
-            
             // Find the conversation with this user
             const userConversation = participants.find(p => p.user_id === profile.id);
             const conversationDetail = conversationDetails?.find(c => c.id === userConversation?.conversation_id);
@@ -141,7 +139,6 @@ const CoachSelector = ({ onSelectCoach, selectedCoachId }: CoachSelectorProps) =
             
             return {
               ...profile,
-              email: user?.email,
               lastMessageAt: conversationDetail?.last_message_at || null,
               unread_count: unreadCount || 0
             };
@@ -149,7 +146,7 @@ const CoachSelector = ({ onSelectCoach, selectedCoachId }: CoachSelectorProps) =
         );
 
         // Sort by latest message (most recent first)
-        const sortedPeople = peopleWithEmails.sort((a, b) => {
+        const sortedPeople = peopleWithDetails.sort((a, b) => {
           if (!a.lastMessageAt) return 1;
           if (!b.lastMessageAt) return -1;
           return new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime();
