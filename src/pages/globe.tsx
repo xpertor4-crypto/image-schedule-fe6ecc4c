@@ -545,5 +545,80 @@ export default function Globe({
           plane.position.copy(point);
           
           // Orient plane along path
+          // Orient plane along path
           const up = point.clone().normalize();
-          const forw
+          const forward = tangent.normalize();
+          const right = new THREE.Vector3().crossVectors(up, forward).normalize();
+          forward.crossVectors(right, up);
+          
+          const matrix = new THREE.Matrix4();
+          matrix.makeBasis(right, up, forward);
+          plane.setRotationFromMatrix(matrix);
+          plane.rotateX(Math.PI / 2);
+        },
+        onComplete: () => {
+          setIsAnimating(false);
+          onAnimationComplete?.();
+        },
+      });
+    }
+
+    // Focus camera on the route
+    autoRotate.current = false;
+    const midPoint = curve.getPointAt(0.5);
+    const targetAngleY = Math.atan2(midPoint.x, midPoint.z);
+    
+    if (globeRef.current) {
+      gsap.to(globeRef.current.rotation, {
+        y: -targetAngleY,
+        duration: 1.5,
+        ease: 'power2.out',
+        onComplete: () => {
+          setTimeout(() => {
+            autoRotate.current = true;
+          }, 3000);
+        },
+      });
+    }
+  }, [fromAirport, toAirport, isAnimating, createMarker, onAnimationComplete, setIsAnimating]);
+
+  return (
+    <div className="relative w-full h-full">
+      <div 
+        ref={containerRef} 
+        className="w-full h-full cursor-grab active:cursor-grabbing"
+        style={{ touchAction: 'none' }}
+      />
+      
+      {/* Airport Info Popup */}
+      {selectedAirport && popupPosition && (
+        <div 
+          className="absolute z-50 bg-background/95 backdrop-blur-sm border border-border rounded-lg shadow-xl p-4 min-w-[250px] pointer-events-auto"
+          style={{ 
+            left: Math.min(popupPosition.x + 10, (containerRef.current?.clientWidth || 400) - 270),
+            top: Math.min(popupPosition.y + 10, (containerRef.current?.clientHeight || 400) - 180),
+          }}
+        >
+          <button 
+            onClick={() => { setSelectedAirport(null); setPopupPosition(null); }}
+            className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
+          >
+            ✕
+          </button>
+          <div className="space-y-2">
+            <div className="flex items-center gap-2">
+              <span className="text-2xl font-bold text-primary">{selectedAirport.code}</span>
+              <span className="text-xs px-2 py-0.5 bg-primary/10 text-primary rounded-full">Airport</span>
+            </div>
+            <h3 className="font-semibold text-foreground">{selectedAirport.name}</h3>
+            <div className="text-sm text-muted-foreground space-y-1">
+              <p>📍 {selectedAirport.city}, {selectedAirport.country}</p>
+              <p>🌐 Lat: {selectedAirport.lat.toFixed(4)}°, Lon: {selectedAirport.lon.toFixed(4)}°</p>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+         
