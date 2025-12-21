@@ -1,222 +1,315 @@
-import { Auth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useEffect, useState } from 'react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useToast } from '@/hooks/use-toast';
 import { useNavigate } from 'react-router-dom';
-import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { CheckCircle2, Mail, AlertCircle } from 'lucide-react';
 
-const AuthPage = () => {
+const Auth = () => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [username, setUsername] = useState('');
+  const [dateOfBirth, setDateOfBirth] = useState('');
+  const [location, setLocation] = useState('');
+  const [gender, setGender] = useState('');
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const [showVerificationMessage, setShowVerificationMessage] = useState(false);
-  const [authError, setAuthError] = useState<string | null>(null);
-  const [isSignUp, setIsSignUp] = useState(false);
 
-  useEffect(() => {
-    // Check if user is already logged in
-    const checkUser = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/');
-      }
-    };
-    checkUser();
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        console.log('Auth event:', event);
-        
-        if (event === 'SIGNED_UP') {
-          // Show verification message after signup
-          setShowVerificationMessage(true);
-          setAuthError(null);
-        } else if (event === 'SIGNED_IN') {
-          if (session) {
-            // Only navigate if email is confirmed
-            const { data: { user } } = await supabase.auth.getUser();
-            if (user?.email_confirmed_at) {
-              navigate('/');
-            } else {
-              setAuthError('Please verify your email before logging in. Check your inbox for the verification link.');
-              await supabase.auth.signOut();
-            }
-          }
-        } else if (event === 'USER_UPDATED') {
-          // Handle email verification completion
-          const { data: { user } } = await supabase.auth.getUser();
-          if (user?.email_confirmed_at) {
-            navigate('/');
-          }
-        } else if (event === 'PASSWORD_RECOVERY') {
-          navigate('/reset-password');
-        }
-      }
-    );
-
-    // Check for error in URL (e.g., email not confirmed)
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
-    const error = hashParams.get('error');
-    const errorDescription = hashParams.get('error_description');
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
     
-    if (error) {
-      if (errorDescription?.includes('Email not confirmed')) {
-        setAuthError('Please verify your email before logging in. Check your inbox for the verification link.');
-      } else {
-        setAuthError(errorDescription || error);
-      }
+    if (!email || !password || !username || !dateOfBirth || !location || !gender) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please fill in all fields',
+        variant: 'destructive',
+      });
+      return;
     }
 
-    return () => {
-      subscription.unsubscribe();
-    };
-  }, [navigate]);
+    setLoading(true);
 
-  // Get the application URL for email redirect
-  const getRedirectUrl = () => {
-    const url = window.location.origin;
-    return url;
+    try {
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            date_of_birth: dateOfBirth,
+            location,
+            gender,
+          },
+          emailRedirectTo: `${window.location.origin}/auth`,
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.user) {
+        toast({
+          title: 'Verification Email Sent',
+          description: 'Please check your email to verify your account before logging in.',
+        });
+        
+        // Clear form fields
+        setEmail('');
+        setPassword('');
+        setUsername('');
+        setDateOfBirth('');
+        setLocation('');
+        setGender('');
+        
+        // Switch to login mode
+        setIsLogin(true);
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Sign Up Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignIn = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!email || !password) {
+      toast({
+        title: 'Missing Information',
+        description: 'Please enter your email and password',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) throw error;
+
+      if (data?.user) {
+        if (!data.user.email_confirmed_at) {
+          toast({
+            title: 'Email Not Verified',
+            description: 'Please verify your email before logging in. Check your inbox for the verification link.',
+            variant: 'destructive',
+          });
+          await supabase.auth.signOut();
+          return;
+        }
+
+        toast({
+          title: 'Success',
+          description: 'Logged in successfully!',
+        });
+        navigate('/');
+      }
+    } catch (error: any) {
+      toast({
+        title: 'Sign In Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendVerification = async () => {
+    if (!email) {
+      toast({
+        title: 'Email Required',
+        description: 'Please enter your email address',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resend({
+        type: 'signup',
+        email,
+        options: {
+          emailRedirectTo: `${window.location.origin}/auth`,
+        },
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: 'Verification Email Sent',
+        description: 'Please check your email for the verification link.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-900 dark:to-gray-800 p-4">
-      <div className="w-full max-w-md space-y-6">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold tracking-tight">Image Scheduler</h1>
-          <p className="text-muted-foreground">
-            {isSignUp ? 'Create an account to get started' : 'Sign in to your account'}
-          </p>
-        </div>
-
-        {/* Verification Success Message */}
-        {showVerificationMessage && (
-          <Alert className="border-green-200 bg-green-50 dark:bg-green-950 dark:border-green-900">
-            <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
-            <AlertTitle className="text-green-800 dark:text-green-300 font-semibold">
-              Verification Email Sent!
-            </AlertTitle>
-            <AlertDescription className="text-green-700 dark:text-green-400 space-y-2">
-              <p>
-                We've sent a verification link to your email address.
-              </p>
-              <p className="font-medium">
-                Please check your inbox and click the verification link to activate your account.
-              </p>
-              <div className="flex items-start gap-2 mt-3 text-sm">
-                <Mail className="h-4 w-4 mt-0.5 flex-shrink-0" />
-                <div>
-                  <p className="font-medium">Didn't receive the email?</p>
-                  <ul className="list-disc list-inside mt-1 space-y-1 text-green-600 dark:text-green-500">
-                    <li>Check your spam/junk folder</li>
-                    <li>Make sure you entered the correct email</li>
-                    <li>Wait a few minutes and try signing up again</li>
-                  </ul>
-                </div>
-              </div>
-            </AlertDescription>
-          </Alert>
-        )}
-
-        {/* Error Message */}
-        {authError && !showVerificationMessage && (
-          <Alert variant="destructive">
-            <AlertCircle className="h-4 w-4" />
-            <AlertTitle>Authentication Error</AlertTitle>
-            <AlertDescription>{authError}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Auth Form */}
-        {!showVerificationMessage && (
-          <div className="bg-white dark:bg-gray-950 p-8 rounded-lg shadow-lg border border-gray-200 dark:border-gray-800">
-            <Auth
-              supabaseClient={supabase}
-              appearance={{
-                theme: ThemeSupa,
-                variables: {
-                  default: {
-                    colors: {
-                      brand: '#2563eb',
-                      brandAccent: '#1d4ed8',
-                    },
-                  },
-                },
-                className: {
-                  container: 'space-y-4',
-                  button: 'w-full',
-                  label: 'text-sm font-medium',
-                },
-              }}
-              providers={[]}
-              redirectTo={getRedirectUrl()}
-              onlyThirdPartyProviders={false}
-              magicLink={false}
-              view="sign_in"
-              showLinks={true}
-              localization={{
-                variables: {
-                  sign_in: {
-                    email_label: 'Email Address',
-                    password_label: 'Password',
-                    button_label: 'Sign In',
-                    loading_button_label: 'Signing in...',
-                    link_text: "Don't have an account? Sign up",
-                  },
-                  sign_up: {
-                    email_label: 'Email Address',
-                    password_label: 'Password',
-                    button_label: 'Create Account',
-                    loading_button_label: 'Creating account...',
-                    link_text: 'Already have an account? Sign in',
-                    confirmation_text: 'Check your email for the confirmation link',
-                  },
-                  forgotten_password: {
-                    link_text: 'Forgot your password?',
-                    button_label: 'Send reset instructions',
-                    loading_button_label: 'Sending...',
-                  },
-                },
-              }}
-              additionalData={{
-                options: {
-                  emailRedirectTo: getRedirectUrl(),
-                }
-              }}
-            />
-            
-            <div className="mt-6 text-center text-sm text-muted-foreground">
-              <p className="flex items-center justify-center gap-2">
-                <Mail className="h-4 w-4" />
-                You'll need to verify your email after signing up
-              </p>
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-2xl font-bold text-center">
+            {isLogin ? 'Welcome Back' : 'Create Account'}
+          </CardTitle>
+          <CardDescription className="text-center">
+            {isLogin
+              ? 'Sign in to your account to continue'
+              : 'Fill in your details to create a new account'}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                placeholder="you@example.com"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                required
+                disabled={loading}
+              />
             </div>
-          </div>
-        )}
 
-        {/* Show button to go back to sign in after successful signup */}
-        {showVerificationMessage && (
-          <div className="text-center">
-            <button
-              onClick={() => {
-                setShowVerificationMessage(false);
-                setIsSignUp(false);
-              }}
-              className="text-sm text-blue-600 hover:text-blue-800 dark:text-blue-400 dark:hover:text-blue-300 underline"
+            <div className="space-y-2">
+              <Label htmlFor="password">Password</Label>
+              <Input
+                id="password"
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                disabled={loading}
+              />
+            </div>
+
+            {!isLogin && (
+              <>
+                <div className="space-y-2">
+                  <Label htmlFor="username">Username</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    placeholder="johndoe"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
+                  <Input
+                    id="dateOfBirth"
+                    type="date"
+                    value={dateOfBirth}
+                    onChange={(e) => setDateOfBirth(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="location">Location</Label>
+                  <Input
+                    id="location"
+                    type="text"
+                    placeholder="City, Country"
+                    value={location}
+                    onChange={(e) => setLocation(e.target.value)}
+                    required
+                    disabled={loading}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="gender">Gender</Label>
+                  <Select value={gender} onValueChange={setGender} disabled={loading}>
+                    <SelectTrigger id="gender">
+                      <SelectValue placeholder="Select gender" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="male">Male</SelectItem>
+                      <SelectItem value="female">Female</SelectItem>
+                      <SelectItem value="other">Other</SelectItem>
+                      <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </>
+            )}
+
+            <Button
+              type="submit"
+              className="w-full"
+              disabled={loading}
             >
-              Back to Sign In
-            </button>
-          </div>
-        )}
+              {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
+            </Button>
 
-        {/* Footer with additional info */}
-        <div className="text-center text-xs text-muted-foreground space-y-2">
-          <p>
-            By continuing, you agree to our Terms of Service and Privacy Policy
-          </p>
-        </div>
-      </div>
+            {isLogin && (
+              <Button
+                type="button"
+                variant="link"
+                className="w-full"
+                onClick={handleResendVerification}
+                disabled={loading}
+              >
+                Resend Verification Email
+              </Button>
+            )}
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  {isLogin ? "Don't have an account?" : 'Already have an account?'}
+                </span>
+              </div>
+            </div>
+
+            <Button
+              type="button"
+              variant="outline"
+              className="w-full"
+              onClick={() => setIsLogin(!isLogin)}
+              disabled={loading}
+            >
+              {isLogin ? 'Create Account' : 'Sign In'}
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 };
 
-export default AuthPage;
+export default Auth;
