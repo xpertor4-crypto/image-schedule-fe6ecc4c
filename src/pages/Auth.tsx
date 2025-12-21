@@ -1,311 +1,316 @@
-import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { useToast } from '@/hooks/use-toast';
-import { useNavigate } from 'react-router-dom';
+import { Auth as SupabaseAuth } from "@supabase/auth-ui-react";
+import { ThemeSupa } from "@supabase/auth-ui-shared";
+import { supabase } from "@/integrations/supabase/client";
+import { useNavigate } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { toast } from "sonner";
+import { User, Mail, Lock, Calendar, MapPin, UserCircle2 } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const Auth = () => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [loading, setLoading] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [dateOfBirth, setDateOfBirth] = useState('');
-  const [location, setLocation] = useState('');
-  const [gender, setGender] = useState('');
-  const { toast } = useToast();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(false);
+  const [activeTab, setActiveTab] = useState<"login" | "signup">("login");
+  
+  // Login form state
+  const [loginEmail, setLoginEmail] = useState("");
+  const [loginPassword, setLoginPassword] = useState("");
+  
+  // Signup form state
+  const [signupUsername, setSignupUsername] = useState("");
+  const [signupEmail, setSignupEmail] = useState("");
+  const [signupPassword, setSignupPassword] = useState("");
+  const [signupDob, setSignupDob] = useState("");
+  const [signupLocation, setSignupLocation] = useState("");
+  const [signupGender, setSignupGender] = useState("");
 
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!email || !password || !username || !dateOfBirth || !location || !gender) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please fill in all fields',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username,
-            date_of_birth: dateOfBirth,
-            location,
-            gender,
-          },
-          emailRedirectTo: `${window.location.origin}/auth`,
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.user) {
-        toast({
-          title: 'Verification Email Sent',
-          description: 'Please check your email to verify your account before logging in.',
-        });
-        
-        // Clear form fields
-        setEmail('');
-        setPassword('');
-        setUsername('');
-        setDateOfBirth('');
-        setLocation('');
-        setGender('');
-        
-        // Switch to login mode
-        setIsLogin(true);
+  useEffect(() => {
+    supabase.auth.onAuthStateChange((event, session) => {
+      if (event === "SIGNED_IN" && session) {
+        // Check if email is confirmed
+        if (session.user.email_confirmed_at) {
+          toast.success("Welcome back!");
+          navigate("/");
+        } else {
+          toast.warning("Please verify your email address to continue", {
+            description: "Check your inbox for the verification link"
+          });
+          // Sign out user if email is not verified
+          supabase.auth.signOut();
+        }
+      } else if (event === "USER_UPDATED") {
+        const user = session?.user;
+        if (user?.email_confirmed_at) {
+          toast.success("Email verified successfully!");
+          navigate("/");
+        }
       }
-    } catch (error: any) {
-      toast({
-        title: 'Sign Up Error',
-        description: error.message,
-        variant: 'destructive',
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+    });
+  }, [navigate]);
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        title: 'Missing Information',
-        description: 'Please enter your email and password',
-        variant: 'destructive',
-      });
-      return;
-    }
-
-    setLoading(true);
+    setIsLoading(true);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
+        email: loginEmail,
+        password: loginPassword,
       });
 
       if (error) throw error;
 
-      if (data?.user) {
-        if (!data.user.email_confirmed_at) {
-          toast({
-            title: 'Email Not Verified',
-            description: 'Please verify your email before logging in. Check your inbox for the verification link.',
-            variant: 'destructive',
-          });
-          await supabase.auth.signOut();
-          return;
-        }
-
-        toast({
-          title: 'Success',
-          description: 'Logged in successfully!',
+      // Check if email is confirmed
+      if (data.user && !data.user.email_confirmed_at) {
+        toast.error("Email not verified", {
+          description: "Please verify your email before logging in. Check your inbox for the verification link."
         });
-        navigate('/');
+        await supabase.auth.signOut();
+        return;
       }
+
+      toast.success("Logged in successfully!");
+      navigate("/");
     } catch (error: any) {
-      toast({
-        title: 'Sign In Error',
-        description: error.message,
-        variant: 'destructive',
+      toast.error("Login failed", {
+        description: error.message || "Invalid email or password"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
-  const handleResendVerification = async () => {
-    if (!email) {
-      toast({
-        title: 'Email Required',
-        description: 'Please enter your email address',
-        variant: 'destructive',
-      });
+  const handleSignup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    if (!signupUsername || !signupEmail || !signupPassword || !signupDob || !signupLocation || !signupGender) {
+      toast.error("All fields are required");
       return;
     }
 
-    setLoading(true);
+    setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
+      const { data, error } = await supabase.auth.signUp({
+        email: signupEmail,
+        password: signupPassword,
         options: {
           emailRedirectTo: `${window.location.origin}/auth`,
+          data: {
+            username: signupUsername,
+            date_of_birth: signupDob,
+            location: signupLocation,
+            gender: signupGender,
+          },
         },
       });
 
       if (error) throw error;
 
-      toast({
-        title: 'Verification Email Sent',
-        description: 'Please check your email for the verification link.',
-      });
+      if (data.user) {
+        toast.success("Account created successfully!", {
+          description: "Please check your email to verify your account before logging in."
+        });
+        // Switch to login tab
+        setActiveTab("login");
+        // Clear signup form
+        setSignupUsername("");
+        setSignupEmail("");
+        setSignupPassword("");
+        setSignupDob("");
+        setSignupLocation("");
+        setSignupGender("");
+      }
     } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message,
-        variant: 'destructive',
+      toast.error("Signup failed", {
+        description: error.message || "Please try again"
       });
     } finally {
-      setLoading(false);
+      setIsLoading(false);
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 p-4">
-      <Card className="w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 p-4">
+      <Card className="w-full max-w-md shadow-xl">
         <CardHeader className="space-y-1">
-          <CardTitle className="text-2xl font-bold text-center">
-            {isLogin ? 'Welcome Back' : 'Create Account'}
+          <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            Welcome
           </CardTitle>
-          <CardDescription className="text-center">
-            {isLogin
-              ? 'Sign in to your account to continue'
-              : 'Fill in your details to create a new account'}
+          <CardDescription className="text-center text-base">
+            Sign in to your account or create a new one
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={isLogin ? handleSignIn : handleSignUp} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                disabled={loading}
-              />
-            </div>
-
-            {!isLogin && (
-              <>
+          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as "login" | "signup")} className="w-full">
+            <TabsList className="grid w-full grid-cols-2 mb-6">
+              <TabsTrigger value="login">Login</TabsTrigger>
+              <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="login">
+              <form onSubmit={handleLogin} className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    placeholder="johndoe"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
+                  <Label htmlFor="login-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="login-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      className="pl-10"
+                      value={loginEmail}
+                      onChange={(e) => setLoginEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="login-password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="login-password"
+                      type="password"
+                      placeholder="••••••••"
+                      className="pl-10"
+                      value={loginPassword}
+                      onChange={(e) => setLoginPassword(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Logging in..." : "Login"}
+                </Button>
+              </form>
+            </TabsContent>
+            
+            <TabsContent value="signup">
+              <form onSubmit={handleSignup} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="signup-username">Username</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-username"
+                      type="text"
+                      placeholder="johndoe"
+                      className="pl-10"
+                      value={signupUsername}
+                      onChange={(e) => setSignupUsername(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="dateOfBirth">Date of Birth</Label>
-                  <Input
-                    id="dateOfBirth"
-                    type="date"
-                    value={dateOfBirth}
-                    onChange={(e) => setDateOfBirth(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
+                  <Label htmlFor="signup-dob">Date of Birth</Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-dob"
+                      type="date"
+                      className="pl-10"
+                      value={signupDob}
+                      onChange={(e) => setSignupDob(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="location">Location</Label>
-                  <Input
-                    id="location"
-                    type="text"
-                    placeholder="City, Country"
-                    value={location}
-                    onChange={(e) => setLocation(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
+                  <Label htmlFor="signup-location">Location</Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-location"
+                      type="text"
+                      placeholder="City, Country"
+                      className="pl-10"
+                      value={signupLocation}
+                      onChange={(e) => setSignupLocation(e.target.value)}
+                      required
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="gender">Gender</Label>
-                  <Select value={gender} onValueChange={setGender} disabled={loading}>
-                    <SelectTrigger id="gender">
-                      <SelectValue placeholder="Select gender" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="male">Male</SelectItem>
-                      <SelectItem value="female">Female</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                      <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <Label htmlFor="signup-gender">Gender</Label>
+                  <div className="relative">
+                    <UserCircle2 className="absolute left-3 top-3 h-4 w-4 text-gray-400 z-10" />
+                    <Select value={signupGender} onValueChange={setSignupGender} required>
+                      <SelectTrigger className="pl-10">
+                        <SelectValue placeholder="Select gender" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="male">Male</SelectItem>
+                        <SelectItem value="female">Female</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                        <SelectItem value="prefer-not-to-say">Prefer not to say</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
                 </div>
-              </>
-            )}
+                
+                <div className="space-y-2">
+                  <Label htmlFor="signup-email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-email"
+                      type="email"
+                      placeholder="your@email.com"
+                      className="pl-10"
+                      value={signupEmail}
+                      onChange={(e) => setSignupEmail(e.target.value)}
+                      required
+                    />
+                  </div>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label htmlFor="signup-password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="signup-password"
+                      type="password"
+                      placeholder="••••••••"
+                      className="pl-10"
+                      value={signupPassword}
+                      onChange={(e) => setSignupPassword(e.target.value)}
+                      required
+                      minLength={6}
+                    />
+                  </div>
+                </div>
 
-            <Button
-              type="submit"
-              className="w-full"
-              disabled={loading}
-            >
-              {loading ? 'Loading...' : isLogin ? 'Sign In' : 'Sign Up'}
-            </Button>
+                <p className="text-xs text-gray-500 text-center">
+                  By signing up, you agree to our Terms of Service and Privacy Policy
+                </p>
 
-            {isLogin && (
-              <Button
-                type="button"
-                variant="link"
-                className="w-full"
-                onClick={handleResendVerification}
-                disabled={loading}
-              >
-                Resend Verification Email
-              </Button>
-            )}
-
-            <div className="relative">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-background px-2 text-muted-foreground">
-                  {isLogin ? "Don't have an account?" : 'Already have an account?'}
-                </span>
-              </div>
-            </div>
-
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full"
-              onClick={() => setIsLogin(!isLogin)}
-              disabled={loading}
-            >
-              {isLogin ? 'Create Account' : 'Sign In'}
-            </Button>
-          </form>
+                <Button
+                  type="submit"
+                  className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Creating account..." : "Sign Up"}
+                </Button>
+              </form>
+            </TabsContent>
+          </Tabs>
         </CardContent>
       </Card>
     </div>
