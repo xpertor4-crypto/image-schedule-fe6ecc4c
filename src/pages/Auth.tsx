@@ -1,132 +1,181 @@
-import { Auth as SupabaseAuth } from "@supabase/auth-ui-react";
-import { ThemeSupa } from "@supabase/auth-ui-shared";
+import { useState } from "react";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
-import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { useTranslation } from "react-i18next";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 
 const Auth = () => {
   const navigate = useNavigate();
-  const { t } = useTranslation();
   const { toast } = useToast();
-  const [acceptAllTerms, setAcceptAllTerms] = useState(false);
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "SIGNED_IN" && session) {
-        if (!acceptAllTerms) {
+  const handleAuth = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Successfully logged in!",
+        });
+        navigate("/");
+      } else {
+        if (password !== confirmPassword) {
           toast({
-            title: t("auth.termsRequired"),
-            description: t("auth.pleaseAcceptTerms"),
+            title: "Error",
+            description: "Passwords do not match",
             variant: "destructive",
           });
-          supabase.auth.signOut();
+          setIsLoading(false);
           return;
         }
-        navigate("/");
+
+        if (!acceptedTerms) {
+          toast({
+            title: "Error",
+            description: "You must accept the Terms of Use, Broadcaster Agreement, and Privacy Policy",
+            variant: "destructive",
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+        });
+
+        if (error) throw error;
+
+        toast({
+          title: "Success",
+          description: "Account created! Please check your email to verify your account.",
+        });
+        setIsLogin(true);
       }
-    });
-  }, [navigate, t, toast, acceptAllTerms]);
+    } catch (error: any) {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 p-4">
-      <div className="w-full max-w-md space-y-6 bg-white p-8 rounded-lg shadow-lg">
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold text-gray-900">{t("auth.welcome")}</h1>
-          <p className="text-gray-600">{t("auth.signInToContinue")}</p>
-        </div>
+      <div className="w-full max-w-md bg-white rounded-lg shadow-lg p-8">
+        <h1 className="text-3xl font-bold text-center mb-8">
+          {isLogin ? "Welcome Back" : "Create Account"}
+        </h1>
 
-        <div className="space-y-4">
-          <div className="flex items-start space-x-2">
-            <Checkbox
-              id="acceptAllTerms"
-              checked={acceptAllTerms}
-              onCheckedChange={(checked) => setAcceptAllTerms(checked as boolean)}
+        <form onSubmit={handleAuth} className="space-y-4">
+          <div>
+            <Label htmlFor="email">Email</Label>
+            <Input
+              id="email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              required
+              disabled={isLoading}
             />
-            <Label
-              htmlFor="acceptAllTerms"
-              className="text-sm font-normal leading-relaxed cursor-pointer"
-            >
-              You must be at least 18 years of age and you must agree to{" "}
-              <a
-                href="/terms-of-use"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Terms of Use
-              </a>
-              ,{" "}
-              <a
-                href="/broadcaster-agreement"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Broadcaster Agreement
-              </a>
-              , and{" "}
-              <a
-                href="/privacy-policy"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-blue-600 hover:text-blue-800 underline"
-                onClick={(e) => e.stopPropagation()}
-              >
-                Privacy Policy
-              </a>
-            </Label>
           </div>
 
-          {!acceptAllTerms && (
-            <p className="text-sm text-red-600">
-              {t("auth.pleaseAcceptTerms")}
-            </p>
-          )}
-        </div>
+          <div>
+            <Label htmlFor="password">Password</Label>
+            <Input
+              id="password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              required
+              disabled={isLoading}
+            />
+          </div>
 
-        <div className={acceptAllTerms ? "" : "opacity-50 pointer-events-none"}>
-          <SupabaseAuth
-            supabaseClient={supabase}
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: "#8B5CF6",
-                    brandAccent: "#7C3AED",
-                  },
-                },
-              },
+          {!isLogin && (
+            <>
+              <div>
+                <Label htmlFor="confirmPassword">Confirm Password</Label>
+                <Input
+                  id="confirmPassword"
+                  type="password"
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Confirm your password"
+                  required
+                  disabled={isLoading}
+                />
+              </div>
+
+              <div className="flex items-start space-x-2">
+                <Checkbox
+                  id="terms"
+                  checked={acceptedTerms}
+                  onCheckedChange={(checked) => setAcceptedTerms(checked as boolean)}
+                  disabled={isLoading}
+                />
+                <Label htmlFor="terms" className="text-sm leading-relaxed cursor-pointer">
+                  You must be at least 18 years of age and you must agree to{" "}
+                  <Link to="/terms" className="text-blue-600 hover:underline">
+                    Terms of Use
+                  </Link>
+                  ,{" "}
+                  <Link to="/broadcaster-agreement" className="text-blue-600 hover:underline">
+                    Broadcaster Agreement
+                  </Link>
+                  , and{" "}
+                  <Link to="/privacy" className="text-blue-600 hover:underline">
+                    Privacy Policy
+                  </Link>
+                </Label>
+              </div>
+            </>
+          )}
+
+          <Button type="submit" className="w-full" disabled={isLoading}>
+            {isLoading ? "Loading..." : isLogin ? "Sign In" : "Sign Up"}
+          </Button>
+        </form>
+
+        <div className="mt-4 text-center">
+          <button
+            type="button"
+            onClick={() => {
+              setIsLogin(!isLogin);
+              setEmail("");
+              setPassword("");
+              setConfirmPassword("");
+              setAcceptedTerms(false);
             }}
-            providers={["google", "github"]}
-            redirectTo={window.location.origin}
-            localization={{
-              variables: {
-                sign_in: {
-                  email_label: t("auth.email"),
-                  password_label: t("auth.password"),
-                  button_label: t("auth.signIn"),
-                  loading_button_label: t("auth.signingIn"),
-                  social_provider_text: t("auth.signInWith"),
-                  link_text: t("auth.alreadyHaveAccount"),
-                },
-                sign_up: {
-                  email_label: t("auth.email"),
-                  password_label: t("auth.password"),
-                  button_label: t("auth.signUp"),
-                  loading_button_label: t("auth.signingUp"),
-                  social_provider_text: t("auth.signUpWith"),
-                  link_text: t("auth.dontHaveAccount"),
-                },
-              },
-            }}
-          />
+            className="text-blue-600 hover:underline"
+            disabled={isLoading}
+          >
+            {isLogin
+              ? "Don't have an account? Sign up"
+              : "Already have an account? Sign in"}
+          </button>
         </div>
       </div>
     </div>
