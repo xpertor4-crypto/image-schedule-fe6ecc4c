@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { z } from "zod";
@@ -19,6 +20,9 @@ const Auth = () => {
   const [isLogin, setIsLogin] = useState(true);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [acceptPrivacyPolicy, setAcceptPrivacyPolicy] = useState(false);
+  const [acceptBroadcasterAgreement, setAcceptBroadcasterAgreement] = useState(false);
+  const [acceptTermsOfUse, setAcceptTermsOfUse] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
@@ -60,6 +64,17 @@ const Auth = () => {
           description: t("auth.signedInDescription"),
         });
       } else {
+        // Validate agreements for signup
+        if (!acceptPrivacyPolicy || !acceptBroadcasterAgreement || !acceptTermsOfUse) {
+          toast({
+            variant: "destructive",
+            title: t("auth.validationError"),
+            description: "You must accept the Privacy Policy, Broadcaster Agreement, and Terms of Use to sign up.",
+          });
+          setLoading(false);
+          return;
+        }
+
         const { error } = await supabase.auth.signUp({
           email: validated.email,
           password: validated.password,
@@ -151,6 +166,83 @@ const Auth = () => {
                 required
               />
             </div>
+            
+            {!isLogin && (
+              <div className="space-y-4 pt-2">
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="privacy-policy"
+                    checked={acceptPrivacyPolicy}
+                    onCheckedChange={(checked) => setAcceptPrivacyPolicy(checked as boolean)}
+                    className="mt-1"
+                  />
+                  <label
+                    htmlFor="privacy-policy"
+                    className="text-sm leading-relaxed cursor-pointer"
+                  >
+                    I accept the{" "}
+                    <a
+                      href="/privacy-policy"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Privacy Policy
+                    </a>
+                  </label>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="broadcaster-agreement"
+                    checked={acceptBroadcasterAgreement}
+                    onCheckedChange={(checked) => setAcceptBroadcasterAgreement(checked as boolean)}
+                    className="mt-1"
+                  />
+                  <label
+                    htmlFor="broadcaster-agreement"
+                    className="text-sm leading-relaxed cursor-pointer"
+                  >
+                    I accept the{" "}
+                    <a
+                      href="/broadcaster-agreement"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Broadcaster Agreement
+                    </a>
+                  </label>
+                </div>
+
+                <div className="flex items-start space-x-3">
+                  <Checkbox
+                    id="terms-of-use"
+                    checked={acceptTermsOfUse}
+                    onCheckedChange={(checked) => setAcceptTermsOfUse(checked as boolean)}
+                    className="mt-1"
+                  />
+                  <label
+                    htmlFor="terms-of-use"
+                    className="text-sm leading-relaxed cursor-pointer"
+                  >
+                    I accept the{" "}
+                    <a
+                      href="/terms-of-use"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline font-medium"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Terms of Use
+                    </a>
+                  </label>
+                </div>
+              </div>
+            )}
+
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? t("common.loading") : isLogin ? t("auth.signIn") : t("auth.signUp")}
             </Button>
@@ -199,7 +291,7 @@ const Auth = () => {
               disabled={loading}
             >
               <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24" fill="currentColor">
-                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09l.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
+                <path d="M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.09l-.01-.01zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z" />
               </svg>
               Apple
             </Button>
