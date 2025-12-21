@@ -1,118 +1,100 @@
-import { Auth as SupabaseAuth } from '@supabase/auth-ui-react';
-import { ThemeSupa } from '@supabase/auth-ui-shared';
-import { supabase } from '@/integrations/supabase/client';
-import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useToast } from '@/hooks/use-toast';
-import { User, Users } from 'lucide-react';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { User, Mail, Lock, Calendar, MapPin } from "lucide-react";
 
-export default function Auth() {
+const Auth = () => {
+  const [isLogin, setIsLogin] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
+  const [dateOfBirth, setDateOfBirth] = useState("");
+  const [location, setLocation] = useState("");
+  const [gender, setGender] = useState("");
+  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [username, setUsername] = useState('');
-  const [gender, setGender] = useState('');
-  const [termsAccepted, setTermsAccepted] = useState(false);
-  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate('/');
-      }
-    });
-
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (session) {
-        navigate('/');
-      }
-    });
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
-
-  const handleSignUp = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const validateAge = (dob: string) => {
+    const today = new Date();
+    const birthDate = new Date(dob);
+    const age = today.getFullYear() - birthDate.getFullYear();
+    const monthDiff = today.getMonth() - birthDate.getMonth();
     
-    if (!email || !password || !username || !gender) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return;
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < birthDate.getDate())) {
+      return age - 1 >= 18;
     }
-
-    if (!termsAccepted) {
-      toast({
-        title: "Error",
-        description: "Please accept the terms and conditions",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    setLoading(true);
-
-    try {
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            username,
-            gender,
-          },
-        },
-      });
-
-      if (error) throw error;
-
-      toast({
-        title: "Success",
-        description: "Account created successfully! Please check your email to verify your account.",
-      });
-    } catch (error: any) {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
+    return age >= 18;
   };
 
-  const handleSignIn = async (e: React.FormEvent) => {
+  const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!email || !password) {
-      toast({
-        title: "Error",
-        description: "Please fill in all fields",
-        variant: "destructive",
-      });
-      return;
-    }
-
     setLoading(true);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      if (isLogin) {
+        const { error } = await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (error) throw error;
+        if (error) throw error;
+
+        toast({
+          title: "Welcome back!",
+          description: "You have successfully logged in.",
+        });
+        navigate("/");
+      } else {
+        if (!validateAge(dateOfBirth)) {
+          toast({
+            title: "Age Requirement",
+            description: "You must be at least 18 years old to register.",
+            variant: "destructive",
+          });
+          setLoading(false);
+          return;
+        }
+
+        const { data: authData, error: signUpError } = await supabase.auth.signUp({
+          email,
+          password,
+          options: {
+            data: {
+              username,
+              date_of_birth: dateOfBirth,
+              location,
+              gender,
+            },
+          },
+        });
+
+        if (signUpError) throw signUpError;
+
+        if (authData.user) {
+          const { error: profileError } = await supabase
+            .from('profiles')
+            .update({
+              username,
+              date_of_birth: dateOfBirth,
+              location,
+              gender,
+            })
+            .eq('id', authData.user.id);
+
+          if (profileError) throw profileError;
+        }
+
+        toast({
+          title: "Account created!",
+          description: "Please check your email to verify your account.",
+        });
+      }
     } catch (error: any) {
       toast({
         title: "Error",
@@ -125,107 +107,222 @@ export default function Auth() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-blue-50 p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white rounded-2xl shadow-xl p-8">
-          <h1 className="text-3xl font-bold text-center mb-8 text-gray-800">
-            {isSignUp ? 'Create Account' : 'Welcome Back'}
-          </h1>
-
-          <form onSubmit={isSignUp ? handleSignUp : handleSignIn} className="space-y-4">
-            {isSignUp && (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-purple-50 to-pink-50 p-4">
+      <Card className="w-full max-w-md shadow-xl">
+        <CardHeader className="space-y-1">
+          <CardTitle className="text-3xl font-bold text-center bg-gradient-to-r from-purple-600 to-pink-600 bg-clip-text text-transparent">
+            {isLogin ? "Welcome Back" : "Create Account"}
+          </CardTitle>
+          <CardDescription className="text-center text-base">
+            {isLogin
+              ? "Enter your credentials to access your account"
+              : "Fill in your details to get started"}
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <form onSubmit={handleAuth} className="space-y-5">
+            {!isLogin && (
               <>
                 <div className="space-y-2">
-                  <Label htmlFor="username">Username</Label>
-                  <Input
-                    id="username"
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="Choose a username"
-                    required
-                  />
+                  <Label htmlFor="username" className="text-sm font-medium">
+                    Username
+                  </Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="username"
+                      placeholder="Choose a username"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      required
+                      className="pl-10"
+                    />
+                  </div>
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Gender</Label>
-                  <RadioGroup value={gender} onValueChange={setGender} className="flex gap-4">
-                    <div className="flex items-center space-x-2 flex-1">
-                      <RadioGroupItem value="male" id="male" />
-                      <Label htmlFor="male" className="flex items-center gap-2 cursor-pointer">
-                        <User className="w-4 h-4" />
+                  <Label htmlFor="dateOfBirth" className="text-sm font-medium">
+                    Date of Birth
+                  </Label>
+                  <div className="relative">
+                    <Calendar className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="dateOfBirth"
+                      type="date"
+                      value={dateOfBirth}
+                      onChange={(e) => setDateOfBirth(e.target.value)}
+                      required
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="location" className="text-sm font-medium">
+                    Location
+                  </Label>
+                  <div className="relative">
+                    <MapPin className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                    <Input
+                      id="location"
+                      placeholder="Your location"
+                      value={location}
+                      onChange={(e) => setLocation(e.target.value)}
+                      required
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Gender</Label>
+                  <div className="flex gap-3 justify-center">
+                    <button
+                      type="button"
+                      onClick={() => setGender("male")}
+                      className={`flex-1 py-4 px-6 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${
+                        gender === "male"
+                          ? "border-blue-500 bg-blue-50 shadow-md scale-105"
+                          : "border-gray-200 bg-white hover:border-blue-300 hover:bg-blue-50/50"
+                      }`}
+                    >
+                      <User className={`h-8 w-8 ${gender === "male" ? "text-blue-600" : "text-gray-400"}`} />
+                      <span className={`font-medium text-sm ${gender === "male" ? "text-blue-700" : "text-gray-600"}`}>
                         Male
-                      </Label>
-                    </div>
-                    <div className="flex items-center space-x-2 flex-1">
-                      <RadioGroupItem value="female" id="female" />
-                      <Label htmlFor="female" className="flex items-center gap-2 cursor-pointer">
-                        <Users className="w-4 h-4" />
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setGender("female")}
+                      className={`flex-1 py-4 px-6 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${
+                        gender === "female"
+                          ? "border-pink-500 bg-pink-50 shadow-md scale-105"
+                          : "border-gray-200 bg-white hover:border-pink-300 hover:bg-pink-50/50"
+                      }`}
+                    >
+                      <User className={`h-8 w-8 ${gender === "female" ? "text-pink-600" : "text-gray-400"}`} />
+                      <span className={`font-medium text-sm ${gender === "female" ? "text-pink-700" : "text-gray-600"}`}>
                         Female
-                      </Label>
-                    </div>
-                  </RadioGroup>
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => setGender("other")}
+                      className={`flex-1 py-4 px-6 rounded-xl border-2 transition-all duration-200 flex flex-col items-center gap-2 ${
+                        gender === "other"
+                          ? "border-purple-500 bg-purple-50 shadow-md scale-105"
+                          : "border-gray-200 bg-white hover:border-purple-300 hover:bg-purple-50/50"
+                      }`}
+                    >
+                      <User className={`h-8 w-8 ${gender === "other" ? "text-purple-600" : "text-gray-400"}`} />
+                      <span className={`font-medium text-sm ${gender === "other" ? "text-purple-700" : "text-gray-600"}`}>
+                        Other
+                      </span>
+                    </button>
+                  </div>
                 </div>
               </>
             )}
 
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                placeholder="your@email.com"
-                required
-              />
+              <Label htmlFor="email" className="text-sm font-medium">
+                Email
+              </Label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="email"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  className="pl-10"
+                />
+              </div>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <Input
-                id="password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                placeholder="••••••••"
-                required
-              />
+              <Label htmlFor="password" className="text-sm font-medium">
+                Password
+              </Label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
+                <Input
+                  id="password"
+                  type="password"
+                  placeholder="••••••••"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  required
+                  className="pl-10"
+                />
+              </div>
             </div>
 
-            {isSignUp && (
-              <div className="flex items-start space-x-2">
-                <Checkbox
-                  id="terms"
-                  checked={termsAccepted}
-                  onCheckedChange={(checked) => setTermsAccepted(checked as boolean)}
-                />
-                <label
-                  htmlFor="terms"
-                  className="text-sm text-gray-600 leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70"
-                >
-                  I agree to the terms and conditions
-                </label>
+            {!isLogin && (
+              <div className="pt-2 pb-1 space-y-2 text-xs text-gray-600 bg-gray-50 rounded-lg p-4 border border-gray-200">
+                <p className="font-medium text-center text-sm text-gray-700">
+                  You must be 18+ to create an account
+                </p>
+                <p className="text-center leading-relaxed">
+                  By creating an account, you agree to our{" "}
+                  <a
+                    href="/terms"
+                    className="text-purple-600 hover:text-purple-700 font-medium underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Terms of Use
+                  </a>
+                  ,{" "}
+                  <a
+                    href="/privacy"
+                    className="text-purple-600 hover:text-purple-700 font-medium underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Privacy Policy
+                  </a>
+                  , and{" "}
+                  <a
+                    href="/broadcaster-agreement"
+                    className="text-purple-600 hover:text-purple-700 font-medium underline"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Broadcaster Agreement
+                  </a>
+                  .
+                </p>
               </div>
             )}
 
-            <Button type="submit" className="w-full" disabled={loading}>
-              {loading ? 'Loading...' : isSignUp ? 'Sign Up' : 'Sign In'}
+            <Button
+              type="submit"
+              className="w-full bg-gradient-to-r from-purple-600 to-pink-600 hover:from-purple-700 hover:to-pink-700 text-white font-medium py-6 rounded-lg shadow-md hover:shadow-lg transition-all duration-200"
+              disabled={loading}
+            >
+              {loading ? "Loading..." : isLogin ? "Sign In" : "Create Account"}
             </Button>
           </form>
 
           <div className="mt-6 text-center">
             <button
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-purple-600 hover:text-purple-700"
+              onClick={() => setIsLogin(!isLogin)}
+              className="text-sm text-purple-600 hover:text-purple-700 font-medium hover:underline"
             >
-              {isSignUp
-                ? 'Already have an account? Sign in'
-                : "Don't have an account? Sign up"}
+              {isLogin
+                ? "Don't have an account? Sign up"
+                : "Already have an account? Sign in"}
             </button>
           </div>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
-}
+};
+
+export default Auth;
