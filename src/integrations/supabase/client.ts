@@ -3,9 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import type { Database } from './types';
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-// NOTE: A publishable/public Supabase key was provided and is embedded as a fallback below.
-// It's safe to expose the "publishable" key in the client, but avoid committing secret/anon keys.
-const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY ?? 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzb2NxaWducXFqd3BhbXd6d2FsIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjQyNTQ4OTUsImV4cCI6MjA3OTgzMDg5NX0.yCPVWGcmWj67rVfx_3VvtmMjrhNwndJrZeHHQc3mT2k';
+const SUPABASE_PUBLISHABLE_KEY = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
 
 // Import the supabase client like this:
 // import { supabase } from "@/integrations/supabase/client";
