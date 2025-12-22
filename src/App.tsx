@@ -14,7 +14,6 @@ import Settings from "./pages/Settings";
 import SetupCoaches from "./pages/SetupCoaches";
 import CoachDashboard from "./pages/CoachDashboard";
 import NotFound from "./pages/NotFound";
-import Verify from "./pages/Verify";
 
 const queryClient = new QueryClient();
 
@@ -27,7 +26,6 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/verify" element={<Verify />} />
         <Route path="/leaderboard" element={<Journey />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/settings" element={<Settings />} />
