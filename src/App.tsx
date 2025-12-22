@@ -27,7 +27,7 @@ const AppContent = () => {
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/auth" element={<Auth />} />
-        <Route path="/verify" element={<Verify />} />
+        <Route path="/Verify" element={<Verify />} />
         <Route path="/leaderboard" element={<Journey />} />
         <Route path="/chat" element={<Chat />} />
         <Route path="/settings" element={<Settings />} />
