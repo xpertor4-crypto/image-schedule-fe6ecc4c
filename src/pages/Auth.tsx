@@ -101,7 +101,7 @@ const Auth = () => {
         password: signupPassword,
         options: {
 //enable verify email via link
-          emailRedirectTo: `${window.location.origin}/verify`,
+          emailRedirectTo: `${window.location.origin}/auth`,
           data: {
             username: signupUsername,
             date_of_birth: signupDob,
